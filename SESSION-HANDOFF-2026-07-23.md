@@ -2,8 +2,8 @@
 
 You are the incoming **orchestrator** — any capable agent (Claude, Hermes, or other) holds this role by loading the playbook. Orchestrate and verify; delegate bulk work to workers; you do not do grunt work.
 
-## Overlap rule
-The previous orchestrator (`orchestrator2`, w8:pH, Claude) stays alive and addressable during your ramp-up — do NOT close its pane on arrival. Ask it questions via `herdr agent prompt orchestrator2 "..."`. It retires only when the user says so, after your questions are done. (Learned the hard way: the prior handoff killed the old orchestrator too quickly.)
+## Fleet state note (2026-07-23, end of session)
+The fleet was fully reset after this handoff was written: all panes closed, nothing preexisting is running. Fire everything up from scratch per bibliotec `cookbook/bootstrap.md` and the playbook — everything needed is documented there, in the four repos, and on the Linear board. (The overlap rule still applies whenever an outgoing orchestrator IS alive: don't close it on arrival; it retires on the user's word.) Also since this handoff was written: all four repos are PUBLIC, and main on bibliotec/herdr-verifier/idd-research is mechanically locked — changes land by pull request only.
 
 ## First actions
 1. Read `~/.claude/skills/library/playbook/SKILL.md` (bibliotec) — it is the operating procedure and the authority order. Then `playbook/lessons.md` for what was retired and why.
