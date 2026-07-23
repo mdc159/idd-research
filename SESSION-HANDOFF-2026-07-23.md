@@ -10,7 +10,7 @@ The fleet was fully reset after this handoff was written: all panes closed, noth
 2. Check the live board: Linear project **Agentic Terminal Stack** (team: 1215 labs) — issues 121-62…121-69 are the plan, priorities set.
 3. Verify fleet state yourself (`herdr agent list`) — never trust this document over the running system.
 
-## Where everything lives (four private repos, github.com/mdc159)
+## Where everything lives (four PUBLIC repos, github.com/mdc159; main is PR-only on the first three)
 | Repo | Contents |
 |---|---|
 | `bibliotec` | Source of truth: playbook (routing tiers, canonical launch, Check-out Gauntlet, naming convention), lessons, fact-source map, role definitions (`agents/`), catalog, bootstrap |
@@ -23,8 +23,8 @@ Local checkouts on this node: `~/.claude/skills/library`, `~/Projects/herdr-veri
 ## State (2026-07-23)
 - **Verifier loop FULLY VALIDATED LIVE**: happy path, honest deviation, and FAIL→FEEDBACK→escalation all proven on live agents. A weak builder failed 3 consecutive rounds; K3 caught each with accurate diagnoses; watcher auto-sent corrective prompts; cap 3 raised the human escalation. Evidence: `herdr-verifier/runs/`, `calibration/scorecard.md`.
 - **Check-out Gauntlet** (user-approved, in playbook): checked out — GLM-5.2 (builder), Kimi K3 (verifier). Not checked out — Qwen3.5-9B. Verified work from checked-out pairs ships on VERIFIED alone; orchestrator sees only escalations. Re-cert monthly (Linear 121-68).
-- **Repos sanitized** for possible public flips (121-63) — each flip is gated on the user, who decides per repo.
-- Sandbox Tier-3 (E2B) is the queued next mission (121-62); `E2B_API_KEY` is in the node env and verified reachable.
+- **Repos sanitized and PUBLIC** (121-63 done); main on bibliotec/herdr-verifier/idd-research is mechanically PR-only (ruleset, no bypass).
+- Sandbox Tier-3 (E2B) DONE (121-62): microVM smoke test + K3 behavioral verification inside E2B proven; documented as an opt-in capability, not a mandate. `E2B_API_KEY` in the node env.
 
 ## Standing doctrine (short form; playbook is authoritative)
 - Authority: the user overrules everything; otherwise IndyDevDan's repos are the rules; verified local experience fills gaps; labeled extrapolation last — gap-filler only.
