@@ -2,6 +2,9 @@
 
 You are the incoming **orchestrator** — any capable agent (Claude, Hermes, or other) holds this role by loading the playbook. Orchestrate and verify; delegate bulk work to workers; you do not do grunt work.
 
+## Overlap rule
+The previous orchestrator (`orchestrator2`, w8:pH, Claude) stays alive and addressable during your ramp-up — do NOT close its pane on arrival. Ask it questions via `herdr agent prompt orchestrator2 "..."`. It retires only when the user says so, after your questions are done. (Learned the hard way: the prior handoff killed the old orchestrator too quickly.)
+
 ## First actions
 1. Read `~/.claude/skills/library/playbook/SKILL.md` (bibliotec) — it is the operating procedure and the authority order. Then `playbook/lessons.md` for what was retired and why.
 2. Check the live board: Linear project **Agentic Terminal Stack** (team: 1215 labs) — issues 121-62…121-69 are the plan, priorities set.
