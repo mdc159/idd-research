@@ -12,7 +12,7 @@ Built a multi-agent stack: **herdr** (terminal multiplexer, v0.7.5) supervises a
 
 ## Model routing (policy)
 - **Fable (me/you)** = orchestrate, plan, final review ONLY. Expensive, ~50% cap.
-- **Codex models** = default heavy lean (most generous plan).
+- **Codex models** = default heavy lean (per-node subscription).
 - **Kimi K3** = top tier, hardest tasks + verification (1M ctx).
 - **GLM-5.2** = high-mileage workhorse for bulk.
 
