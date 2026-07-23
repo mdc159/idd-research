@@ -1,0 +1,488 @@
+# Comparative Analysis: Three Pi Coding Agent Repos
+
+Three extracted repositories analyzed below. Each is built **on top of** the
+[Pi Coding Agent](https://github.com/earendil-works/pi-mono) (a.k.a. `pi`, by
+Mario Zechner / `badlogic`) and treats `pi` as a programmable harness rather
+than a black box. The common integration surface is Pi's **TypeScript
+in-process extension system** — every repo loads a `.ts` file via `pi -e …`
+and subscribes to lifecycle events (`pi.on(...)`) / registers tools
+(`pi.registerTool`), slash commands (`pi.registerCommand`), flags
+(`pi.registerFlag`), widgets, and custom editors.
+
+Across all three repos the same Pi ExtensionAPI methods recur (grep counts):
+
+```
+68  pi.on
+34  pi.registerFlag
+28  pi.registerCommand
+26  pi.getFlag
+26  pi.appendEntry
+19  pi.registerTool
+11  pi.sendUserMessage
+ 9  pi.sendMessage
+ 4  pi.setActiveTools
+ 2  pi.registerMessageRenderer
+```
+
+A telling detail: the import package name changed during Pi's evolution.
+`pi-vs-claude-code-main` and `the-verifier-agent-main` import from
+`@mariozechner/pi-coding-agent` (36 imports); the newer
+`pi-agent-observability-main` imports from `@earendil-works/pi-coding-agent`
+(8 imports). The repos therefore trace Pi's history from personal project to
+published org package.
+
+---
+
+## 1. `repos/pi-vs-claude-code-main` (pi-vs-cc)
+
+### Purpose
+A **showcase playground** of customized Pi Agent instances, explicitly framed
+as "hedg[ing] against the leader in the agentic coding market, Claude Code."
+From `README.md`:
+
+> A collection of Pi Coding Agent customized instances. _Why?_ To showcase
+> what it looks like to hedge against the leader in the agentic coding
+> market, Claude Code.
+
+It demonstrates UI customization, agent orchestration, safety auditing,
+agent-to-agent communication, and cross-tool integration.
+
+### Architecture
+- **One `.ts` file per extension** under `extensions/`, loaded with
+  `pi -e extensions/<name>.ts`. Extensions **compose** — pass multiple `-e`
+  flags to stack them (`pi -e extensions/minimal.ts -e extensions/cross-agent.ts`).
+- **No central runtime** beyond Pi itself. `justfile` wraps useful
+  combinations (`just ext-agent-team`, `just local-coms`, …).
+- Multi-agent patterns are realized by **spawning separate `pi` processes**,
+  not by in-process sub-agents.
+
+The ~20 extensions fall into five categories (`README.md` extension table):
+
+| Category | Extensions |
+| --- | --- |
+| UI / TUI | `pure-focus`, `minimal`, `tool-counter`, `tool-counter-widget`, `theme-cycler`, `session-replay` |
+| Cross-tool interop | `cross-agent` (scans `.claude/`, `.gemini/`, `.codex/` for commands/skills/agents) |
+| Discipline | `purpose-gate`, `tilldone` |
+| Orchestration | `subagent-widget`, `agent-team`, `agent-chain`, `pi-pi`, `coms`, `coms-net` |
+| Safety | `damage-control`, `damage-control-continue` |
+
+### Tech stack
+- **Bun** ≥ 1.3.2 runtime + package manager; **`just`** task runner; TypeScript
+  extensions importing `@mariozechner/pi-coding-agent` and
+  `@mariozechner/pi-tui`; `@sinclair/typebox` for tool parameter schemas;
+  `yaml` for rules (`package.json` shows a single runtime dep: `yaml: ^2.8.0`).
+- Agent personas are plain markdown under `.pi/agents/*.md`; teams/chains are
+  declarative YAML (`.pi/agents/teams.yaml`, `.pi/agents/agent-chain.yaml`).
+
+### Concrete evidence
+- **Agent teams = dispatcher-only.** `extensions/agent-team.ts` header:
+  > The primary Pi agent has NO codebase tools. It can ONLY delegate work to
+  > specialist agents via the `dispatch_agent` tool.
+
+  and at boot it calls `pi.setActiveTools(["dispatch_agent"])`, so the lead
+  model's *only* tool is delegation. Teams are lists in `teams.yaml`:
+  ```yaml
+  frontend:
+    - planner
+    - builder
+    - bowser
+  ```
+- **Agent chains = sequential pipeline.** `agent-chain.yaml` defines `steps`
+  where each step's output becomes the next's `$INPUT`:
+  ```yaml
+  plan-build-review:
+    steps:
+      - agent: planner
+        prompt: "Plan the implementation for: $INPUT"
+      - agent: builder
+        prompt: "Implement the following plan:\n\n$INPUT"
+      - agent: reviewer
+        prompt: "Review this implementation ...\n\n$INPUT"
+  ```
+- **Peer-to-peer (`coms`).** `extensions/coms.ts` implements same-machine
+  peer messaging over Unix sockets / named pipes, with a file registry at
+  `~/.pi/coms/projects/<project>/agents/<name>.json` and four tools
+  (`coms_list`, `coms_send`, `coms_get`, `coms_await`). The README's thesis
+  is that sub-agents/chains move information **one direction** (top-down),
+  while `coms` is bidirectional: "Two agents that actually talk to each other
+  peer-to-peer … No orchestrator, no parent/child relationship." Safety
+  rails: `MAX_HOPS=5` to stop A→B→A loops, audit logs of msg_id/sender/hops.
+- **Networked peer-to-peer (`coms-net`).** `scripts/coms-net-server.ts` is a
+  Bun HTTP + SSE hub. Hard policy (quoted from file header):
+  > Non-loopback bind w/o env token -> fail startup (exit 1).
+- **Safety auditing (`damage-control`).** `extensions/damage-control.ts`
+  loads `.pi/damage-control-rules.yaml` and intercepts `tool_call` events,
+  returning `{ block: true, reason: "🛑 BLOCKED by Damage-Control: …" }` and
+  calling `ctx.abort()`. Rules cover `bashToolPatterns` (regex on `rm -rf`,
+  `DROP DATABASE`…), `zeroAccessPaths`, `readOnlyPaths`, `noDeletePaths`.
+- **The competitive frame is the whole point.** `COMPARISON.md` is a
+  feature-by-feature matrix of Claude Code vs Pi across ~12 categories.
+  Headline numbers (from `COMPARISON.md`):
+  - Pi default system prompt **~200 tokens** vs Claude Code **~10,000+ tokens**.
+  - Pi default tools **4** (`read`, `write`, `edit`, `bash`) + 3 optional
+    (`grep`, `find`, `ls`) vs Claude Code **10+**.
+  - Pi **20+ providers / 324 models** vs Claude Code **4 platforms**.
+  - Pi philosophy: "Trust the model"; CC: "Safe by default."
+
+### Relationship to Pi / terminal coding agents
+This repo **is** the Pi extension system on display. It treats Pi's minimal
+~200-token, 4-tool, "YOLO by default" core as the correct starting point and
+shows that everything Claude Code ships built-in (subagents, teams, plan mode,
+permission sandbox, cost tracking) can be **opted into** as small TypeScript
+extensions. `COMPARISON.md` and the companion `PI_VS_OPEN_CODE.md` are deep
+architectural comparisons (hooks lifecycle, event taxonomy, SDK) positioning
+Pi as the open, programmable, model-agnostic alternative to the closed,
+opinionated, Claude-first Claude Code.
+
+---
+
+## 2. `repos/pi-agent-observability-main` (Pi Observability)
+
+### Purpose
+A **local observability stack** for the Pi agent, organized around one thesis
+("**the trade-off trifecta** of performance, speed, and cost") and the claim
+that "more *useful* tokens beat fewer tokens every time." From `README.md`:
+
+> If you don't measure, you can't improve. … the way to win with agents … is
+> to measure their trade-off trifecta of performance, speed, and cost,
+> because more useful tokens beat fewer tokens every time.
+
+It ships "Four Tools In One": a Pi extension, an observability dashboard, a
+real product-agent demo (Steelman), and four spec/plan prompts.
+
+### Architecture
+Three components, one wire format, one canonical event store (`README.md`):
+
+1. **Pi extension** (`extension/pi-observability.ts`) — subscribes to *every*
+   Pi lifecycle hook, emits canonical `ObsEvent` envelopes, batches up to 50,
+   applies backpressure, retries on transient HTTP failure. "Zero changes to
+   the agent itself."
+2. **Bun + SQLite server** (`apps/observability/server.ts` + `db.ts`) —
+   `POST /events` idempotent ingest, REST + Server-Sent Events, hosts the
+   static browser UI.
+3. **Vanilla-JS browser UI** (`apps/observability/public/`) — three views:
+   **single** (one session timeline), **swimlane** (N sessions side by side),
+   **race** (who finished which step first).
+
+The data flow is strictly one-directional: `extension → server → UI`.
+
+### Tech stack
+- **Bun**, `bun:sqlite` (WAL mode), TypeScript, `@sinclair/typebox`,
+  Server-Sent Events; **vanilla JS** for the dashboard UI (no framework),
+  **Vue + Vite** for the Steelman product demo front-end.
+- Imports from `@earendil-works/pi-coding-agent` — the newer, org-published
+  package name (vs `@mariozechner/…` in the other two repos).
+
+### Concrete evidence
+- **The wire format is the contract.** `shared/types.ts` is a discriminated
+  union of **16 event types** mirroring Pi's lifecycle:
+  ```
+  session_start  session_shutdown  agent_start  agent_end
+  turn_start     turn_end          user_message assistant_message
+  thinking       tool_call         tool_result  model_change
+  compaction     branch_nav        error        custom
+  ```
+  Every envelope carries `event_id` (uuid), `session_id`, monotonic `seq`,
+  `pool`, `tags`, `provider`, `model`, and a `payload`.
+- **Idempotent ingest by design.** `db.ts` schema:
+  ```sql
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_events_session_seq
+    ON events(session_id, seq);
+  ```
+  Insert is `INSERT OR IGNORE`, so duplicate/replayed events are silently
+  dropped — "the extension's own bugs surface immediately." Session upsert
+  uses `COALESCE(excluded.x, sessions.x)` so a null field never clobbers an
+  existing value, and tags are merged via `json_group_array(DISTINCT …)`.
+- **Backpressure in the extension.** `EventQueue.push()` flushes at 50 events
+  or on a timer; on HTTP failure it does exponential backoff
+  (`backoffMs = Math.min(backoffMs * 2, 5000)`). At `maxQueueSize = 10000` it
+  drops oldest and emits a synthetic `error` event.
+- **Boot snapshot = the receipt.** The first `agent_start` of each session
+  carries the *fully assembled system prompt verbatim* plus a structured
+  `BuildSystemPromptOptions` digest — selected tools, every context file
+  (path + bytes + `sha256` + content), every skill (file body + `sha256`).
+  README: "If you ever need to prove which skills made it into the system
+  prompt … that event is the receipt."
+- **Context-utilization math is calibrated against reality.** `db.ts`
+  `getSessionContext` sums `usage.input + cache_read + cache_write` (not
+  `input` alone), with a comment showing it was verified against a live
+  Gemini session that cached almost the whole prefix: input=2832,
+  cache_read=98125 → 10.1%, "exactly what pi terminal showed."
+- **The Steelman demo proves telemetry survives a real workload.**
+  `apps/steelman/server/src/server.ts` runs Pi in **headless RPC mode** —
+  `pi --mode rpc --no-builtin-tools` — with **two** extensions stacked:
+  `pi-observability.ts` (telemetry) + `steelman-product.ts` (product tools).
+  The product agent exposes `steelman_research` (Firecrawl CLI with a
+  DuckDuckGo HTML fallback) and `steelman_emit_artifact` (renders `table`,
+  `bar-chart`, `pie-chart`, `risk-map`, sandboxed `html`, …). Observability
+  captures the Pi-internal lifecycle independently under
+  `pool=product-steelman`, `tag=run-<id>` — "same database, same UI, no
+  special-casing."
+- **Auth is localhost-by-default.** `server.ts` `checkAuth()` accepts a
+  Bearer token or `?token=` query param; the boot banner prints a
+  token-embedded UI URL because "opening the bare host:port (no ?token=)
+  yields a blank UI."
+
+### Relationship to Pi / terminal coding agents
+Observability is a **pure telemetry layer** whose only data source is Pi's
+extension event system. The whole value proposition — "Stop guessing what
+your Pi agent is doing. Watch every turn, every tool call, every token, live"
+— is only possible because Pi exposes a rich, in-process event lifecycle
+(`before_agent_start`, `tool_call`, `tool_result`, `model_select`,
+`session_compact`, `session_tree`, …). It demonstrates that Pi's
+transparency (every token visible, every tool call inspectable, no hidden
+orchestration) is a structural advantage over Claude Code's "abstracted —
+sub-agents are black boxes, compaction happens silently" model (quoted from
+`COMPARISON.md` in repo 1). The Steelman demo additionally shows Pi's
+**RPC mode** (`--mode rpc --no-builtin-tools`) being driven as a backend by
+a separate product web app — Pi-as-engine, not Pi-as-TUI.
+
+---
+
+## 3. `repos/the-verifier-agent-main` (Pi Verifier Agent)
+
+### Purpose
+A **two-agent observer system** that treats verification as a first-class
+concern. From `README.md`:
+
+> A two-agent observer system for the Pi Coding Agent: a normal interactive
+> **Builder** runs in your terminal; a sibling **Verifier** Pi runs in its
+> own tmux window with input disabled. After every builder turn, the
+> verifier independently re-runs the work … and prompts the builder back
+> with concrete corrective feedback when verification fails.
+
+The explicit goal: "moves [review] onto a second agent" — "Spend tokens to
+save time."
+
+### Architecture ("top-down observer")
+```
+   ┌─────────────────────┐         ┌─────────────────────┐
+   │  pi  (BUILDER)      │◄─unix──►│  pi  (VERIFIER)     │
+   │  verifiable.ts      │  socket │  verifier.ts        │
+   │  + socket server    │  JSONL  │  + status-bar editor │
+   │  + lifecycle fwd    │         │  + input lock        │
+   └──────────┬──────────┘         │  + verifier_prompt   │
+              │ writes JSONL       └──────────┬──────────┘
+              ▼                               │ reads slice
+   ~/.pi/agent/sessions/<sid>.jsonl ◄─────────┘
+```
+One Pi binary, two roles. The builder owns a Unix domain socket at
+`/tmp/pi-verifier/<sessionId>.sock` (`chmod 0700` = the authentication) and
+pushes **lifecycle ticks only** — never transcript content. The verifier
+pulls the substantive content it needs from the builder's session JSONL on
+disk. "Builder doesn't know the verifier exists" is the central design rule.
+
+- **Builder side** (`apps/verifier/verifiable.ts`) — owns the socket server,
+  spawns the verifier child via tmux, forwards `start`/`stop`/`error`
+  events. Crucially it captures **per-turn line offsets** in the session
+  JSONL so the verifier can `read` exactly `[start..end)`:
+  ```ts
+  // before_agent_start
+  const linesBefore = await currentSessionFileLineCount(state.sessionFilePath);
+  state.turnStartLine = linesBefore + 1;
+  ```
+- **Verifier side** (`apps/verifier/verifier.ts`) — connects to the socket,
+  replaces Pi's input editor with a colored `VerifierStatusBar` (background
+  color = confidence grade: green/orange/red), and **locks input** by both
+  swallowing keystrokes in the editor *and* a defense-in-depth
+  `pi.on("input")` handler that rejects anything not from
+  `pi.sendUserMessage`. On a `stop` event it templates
+  `.pi/verifier/prompts/verify_on_stop.md` and injects it as a follow-up
+  user message. On its own `agent_end` it parses the `## Report` block and
+  ships it back as a `report` envelope.
+- **IPC** (`apps/verifier/_shared/ipc.ts`) — JSONL framing, one JSON object
+  per line. A notable, concrete correctness note: it explicitly **forbids
+  Node's `readline`** because readline also splits on U+2028 / U+2029, which
+  are legal inside JSON strings and would silently corrupt any payload
+  containing source code or pasted text. It splits on the byte `0x0A` only.
+  Envelopes form a discriminated union (`hello`, `prompt`, `report`,
+  `event`, `ping`/`pong`, `bye`) with a **direction matrix** enforced by
+  `assertDirection(envelope, side)`.
+- **Launcher** (`apps/verifier/_shared/launcher.ts`) — tmux-aware
+  (`$TMUX` set → sibling window; otherwise new OS window via Ghostty /
+  iTerm / Terminal.app `osascript` / Linux emulators). It writes a wrapper
+  bash script to sidestep macOS's `ARG_MAX` (~256KB) — "file size doesn't
+  count toward exec()'s argv limit." The persona's `tools:` frontmatter
+  becomes Pi's `--tools` flag, and its body is rendered into a tempfile
+  passed via `--system-prompt` as a **full overwrite**.
+
+### Tech stack
+- **Node 20+ / npm** (notably **not** Bun, unlike the other two), **tmux**,
+  `just`, TypeScript importing `@mariozechner/pi-coding-agent`.
+- The repo **vendors Pi's own documentation** under `ai_docs/pi/` (full
+  `README.md`, `docs/*` — extensions, rpc, sdk, tui, skills, …), so the
+  verifier's persona and prompts can reference pi internals directly.
+
+### Concrete evidence
+- **The verifier persona is read-only by construction.**
+  `.pi/verifier/agents/verifier.md` frontmatter:
+  ```yaml
+  tools: read, grep, find, ls, bash, verifier_prompt
+  model: openai/gpt-5.5
+  domain: generic
+  max_loops: 3
+  ```
+  Note: **no `write`, no `edit`** — and the `verifier_prompt` tool
+  (`verifier.ts`) is the *only* outbound channel back to the builder. The
+  persona body reinforces this in prose: "Verify, do not build. Your tool
+  surface is `read, grep, find, ls, bash` … Use `bash` for read-only
+  commands only."
+- **The verify loop is templated, not ad-hoc.**
+  `.pi/verifier/prompts/verify_on_stop.md` fires on every `agent_end` and
+  instructs the verifier to read *only* the turn's JSONL slice:
+  > Read **only** the slice `[<SESSION_FILE_START_LINE>..<SESSION_FILE_END_LINE>]`
+  > of the builder's session JSONL — not the whole file.
+
+  On failure with a concrete fix, the verifier calls `verifier_prompt` →
+  builder receives it via `pi.sendUserMessage(deliverAs: "followUp")` →
+  another turn. After `max_loops: 3`, the builder escalates to the human via
+  `pi.sendMessage({ deliverAs: "nextTurn" })`.
+- **A confidence ladder drives the UI.** `ipc.ts`:
+  ```ts
+  export type Confidence = "perfect" | "verified" | "partial" | "feedback" | "failed";
+  ```
+  `verifier.ts` `bgForConfidence()` maps PERFECT/VERIFIED → green,
+  PARTIAL/FEEDBACK → orange, FAILED → red, idle/verifying → purple, and the
+  status bar re-renders on every state mutation.
+- **The reviewer is structurally un-promptable.** README:
+  > The verifier is structurally un-promptable. Its input bar is locked; you
+  > cannot drop one-off instructions into it. … You can't fix bugs by typing
+  > at the verifier — you fix them by editing the persona, the script, or
+  > the prompt template.
+
+### Relationship to Pi / terminal coding agents
+The verifier is the deepest consumer of Pi's harness capabilities in the
+set. It exercises, concretely:
+- **`pi --mode rpc --no-builtin-tools`** plus custom `--child`,
+  `--builder-session`, `--agent`, `--system-prompt`, `--tools`, `--model`
+  flags to run a second Pi as a constrained child.
+- **`ctx.sessionManager.getSessionFile()`** and reading the JSONL with
+  Pi's own `read` tool, using `offset`/`limit` for a turn slice.
+- **`pi.sendUserMessage`** and **`pi.sendMessage`** with the `deliverAs`
+  options (`followUp` / `steer` / `nextTurn`) to inject corrections and
+  system messages without polluting the builder's mid-stream context.
+- **`ctx.ui.setEditorComponent`** to wholesale replace Pi's input editor
+  with a `CustomEditor` subclass, and `ctx.ui.setFooter` for a custom
+  status line — proving Pi's TUI is fully programmable.
+- **Per-session tmux window management** keyed off `$TMUX` and
+  `$TERM_PROGRAM`.
+
+It also embodies the same multi-model thesis as repo 1: the builder can run
+one model and the verifier another (`gpt-5.5` by default here), "stack
+intelligence … GPT 5.5 *and* Opus 4.7, not *or*."
+
+---
+
+## Common Threads
+
+### 1. All three treat Pi as a programmable platform, extending it through the same TypeScript extension surface
+Every repo is a set of `.ts` files loaded with `pi -e`. The identical Pi
+ExtensionAPI is used across all three (see the usage table at the top):
+`pi.on(event)` for lifecycle hooks, `pi.registerTool` / `registerCommand` /
+`registerFlag` for capability injection, `pi.appendEntry` for durable
+per-session state, `pi.sendUserMessage` / `sendMessage` for programmatic
+turn control, and `ctx.ui.setWidget` / `setEditorComponent` / `setFooter`
+for TUI takeover. Pi's extension system is the universal integration layer
+that makes all three possible.
+
+### 2. Same author, same brand, a deliberate progression
+All three READMEs close with an identical **"Master Agentic Coding"** footer
+linking to `agenticengineer.com/tactical-agentic-coding` and the IndyDevDan
+YouTube channel (3–4 matches each). They share conventions: Bun or Node +
+`just` task runner, `.env.sample` for provider keys, `.claude/commands/`
+slash commands (`/install`, `/prime`, `/plan-w-team`), `.pi/` config dirs,
+Markdown specs, MIT license. Read as a sequence they are
+**showcase → measure → verify**: repo 1 catalogues what Pi *can* do, repo 2
+makes it *observable*, repo 3 makes it *self-correcting*.
+
+### 3. Multi-agent orchestration is the central theme, explored via different topologies
+| Repo | Topology | Information flow |
+| --- | --- | --- |
+| pi-vs-cc `agent-team` | Dispatcher → specialists (separate pi sessions) | One-directional, top-down |
+| pi-vs-cc `agent-chain` | Sequential pipeline (`$INPUT` → next step) | One-directional, linear |
+| pi-vs-cc `subagent-widget` | Parent → headless child | One-directional |
+| pi-vs-cc `coms` / `coms-net` | **Peer-to-peer equals** | **Bidirectional** |
+| verifier | **Top-down observer** (builder unaware of verifier) | Observer reads; sends corrections back |
+| observability | Passive telemetry observer | One-directional, into a store |
+
+The `coms` README even states the unifying idea explicitly: "Sub-agent
+delegation and message queues … every one of them moves information in
+basically one direction … Peer-to-peer flips it." The three repos together
+constitute a taxonomy of agent-coordination shapes.
+
+### 4. Local-machine-first IPC, escalating transport
+All four inter-agent/observability channels default to `127.0.0.1` and treat
+anything beyond the loopback as an explicit, token-gated escalation:
+
+| Channel | Transport | Auth | State location |
+| --- | --- | --- | --- |
+| `coms` (local) | Unix socket / named pipe | OS file perms (`0700`) | `~/.pi/coms/projects/…/agents/*.json` |
+| `coms-net` | HTTP + SSE hub | `PI_COMS_NET_AUTH_TOKEN` (required for non-loopback) | `~/.pi/coms-net/…` |
+| verifier | Unix domain socket (`/tmp/pi-verifier/<sid>.sock`) | `chmod 0700` (owning UID only) | session JSONL on disk |
+| observability | HTTP `POST /events` + SSE + SQLite | `OBS_AUTH_TOKEN` / `?token=` | `db/obs.db` (WAL) |
+
+The recurring hard rule, quoted in `coms-net-server.ts`: "Non-loopback bind
+w/o env token -> fail startup (exit 1)."
+
+### 5. Pi's event lifecycle is the load-bearing abstraction everywhere
+The same Pi event names recur across repos (grep counts in parentheses):
+`session_start` (25), `before_agent_start` (8), `agent_end` (6), `input` (5),
+`tool_call` (4), plus `tool_result`, `model_select`, `session_compact`,
+`session_tree`, `turn_start/end`, `message_start/end`. Observability
+literally canonicalizes 16 of them into a discriminated union; the verifier
+hooks `before_agent_start`/`agent_end`/`input`; `coms` and `damage-control`
+hook `session_start`/`tool_call`. The COMPARISON.md hook table (repo 1) is
+the reference these all build on — and it is what makes Pi's lifecycle
+richer than Claude Code's `PreToolUse`/`PostToolUse`/`Stop` shell hooks.
+
+### 6. Defense-in-depth and least-privilege tooling
+- `damage-control` (repo 1): regex interception of bash + path ACLs,
+  returning `{ block: true, reason }` and `ctx.abort()`.
+- The verifier persona (repo 3): tool surface restricted to
+  `read, grep, find, ls, bash, verifier_prompt` — *no write/edit* — enforced
+  architecturally via Pi's `--tools` flag and re-enforced in prose.
+
+Both call out that **bash is the most dangerous tool you give an agent**
+(verifier README), and both make enforcement *prompt-level for the model*
+but *architectural for the tool surface* — the same dual-layer pattern.
+
+### 7. A shared skepticism of "vibes" and a demand for evidence/measurement
+- Observability: "If you don't measure, you can't improve" — the
+  performance/speed/cost trifecta; "more *useful* tokens beat fewer tokens."
+- Verifier: "Evidence beats assertion. The builder agent's final assistant
+  message is a CLAIM, never proof"; "Spend tokens to save time."
+- pi-vs-cc: `tool-counter`, per-tool tallies, token/cost footers,
+  `purpose-gate`, `tilldone` — all about making agent behavior legible and
+  disciplined.
+
+Each repo supplies machinery to replace human guesswork with deterministic
+proof (read-only tool output) or quantitative signal (token/cost/latency).
+
+### 8. The minimal-harness philosophy, contrasted with Claude Code
+All three embody Pi's "complexity lives in your hands" stance (a direct
+quote of Pi's philosophy in repo 1's `COMPARISON.md`). Where Claude Code
+ships sub-agents, teams, plan mode, a permission sandbox, and a ~10k-token
+system prompt built-in, these repos **add** exactly those capabilities as
+small, opt-in TypeScript extensions on top of Pi's ~200-token, 4-tool core.
+Repo 1's `COMPARISON.md` / `PI_VS_OPEN_CODE.md` are the explicit
+competitive analyses that frame this choice: open vs proprietary, MIT vs
+$20–200/mo, model-agnostic (324 models / 20+ providers) vs Claude-first,
+in-process TS hooks vs external shell hooks.
+
+### 9. Claude Code as both competitor and interoperability target
+Pi-vs-cc is openly "hedg[ing] against Claude Code." Yet cross-pollination is
+embraced: `cross-agent.ts` *imports* `.claude/commands`, `.gemini/`, and
+`.codex/` definitions into Pi; the observability README links to the
+original "Claude Code Observability" repo as its inspiration; the verifier
+README invites you to "Open Claude Code (or any coding agent you like) in
+this repo" and run `/install`. Claude Code is simultaneously the benchmark
+to beat, the ecosystem to interoperate with, and (via `.claude/commands`)
+a source of slash-command conventions.
+
+### 10. Pi tracked across its package rename
+The import-path split is a concrete artifact of Pi's own history: repo 1 and
+repo 3 use `@mariozechner/pi-coding-agent` (the original personal scope,
+36 imports total); repo 2 uses `@earendil-works/pi-coding-agent` (the
+published org scope, 8 imports). The verifier repo even vendors a full copy
+of Pi's docs under `ai_docs/pi/` so its prompts can cite pi internals — a
+sign of how tightly these projects couple to Pi's evolving API surface.
