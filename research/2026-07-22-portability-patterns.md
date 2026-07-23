@@ -1,3 +1,11 @@
+---
+date: 2026-07-22
+worker: unattributed (backfilled)
+type: research
+mission: ""
+source: "pre-contract record, was analysis/portability-patterns.md"
+---
+
 # Portability Patterns Across disler's Repos
 
 Focused study of how disler/IndyDevDan's repos make agent assets portable: how sources are referenced, how fleet/roster agents are defined and instantiated, and how a fresh machine is bootstrapped. Every claim cites a file under `~/Projects/IDD/repos/`.
