@@ -1,3 +1,11 @@
+---
+date: 2026-07-23
+worker: orchestrator
+type: handoff
+mission: ""
+source: "pre-contract record, was SESSION-HANDOFF-2026-07-23.md"
+---
+
 # Session Handoff — 2026-07-23 (Agentic Terminal Stack)
 
 You are the incoming **orchestrator** — any capable agent (Claude, Hermes, or other) holds this role by loading the playbook. Orchestrate and verify; delegate bulk work to workers; you do not do grunt work.

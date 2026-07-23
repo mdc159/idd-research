@@ -1,0 +1,14 @@
+name: vault-gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  vault-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate vault records
+        run: python3 scripts/check_vault.py

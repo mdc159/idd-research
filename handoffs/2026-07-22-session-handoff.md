@@ -1,3 +1,11 @@
+---
+date: 2026-07-22
+worker: orchestrator
+type: handoff
+mission: ""
+source: "pre-contract record, was SESSION-HANDOFF-2026-07-22.md"
+---
+
 # Session Handoff — 2026-07-22 (Agentic Terminal Stack)
 
 You are the incoming **orchestrator** (Fable) taking over from the previous session. Your job: orchestrate & verify; delegate all bulk work to cheaper herdr worker agents. Read this, confirm the state below, then continue.

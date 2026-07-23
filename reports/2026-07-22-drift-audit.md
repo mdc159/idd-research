@@ -1,3 +1,11 @@
+---
+date: 2026-07-22
+worker: unattributed (backfilled)
+type: report
+mission: ""
+source: "pre-contract record, was analysis/drift-audit-2026-07-22.md"
+---
+
 - Agentic Terminal Stack MOC.md:60 — Repo locations, names, visibility, remotes
   Claim: | The Library | installed locally, 2 commits, catalog seeded; no remote yet |
   Actual: `~/.claude/skills/library` has remote `origin → git@github.com:mdc159/bibliotec.git` (private) and 11 commits on HEAD; it is already pushed. `gh repo view mdc159/bibliotec` confirms a private, non-fork repo.

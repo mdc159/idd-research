@@ -1,3 +1,11 @@
+---
+date: 2026-07-22
+worker: unattributed (backfilled)
+type: research
+mission: ""
+source: "pre-contract record, was analysis/artist-research.md"
+---
+
 # Artist research: professional technical documentation in Obsidian
 
 Research date: 2026-07-22  

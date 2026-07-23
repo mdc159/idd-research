@@ -1,3 +1,11 @@
+---
+date: 2026-07-22
+worker: unattributed (backfilled)
+type: research
+mission: ""
+source: "pre-contract record, was analysis/agent-sandboxes-report.md"
+---
+
 # Analysis: `disler/agent-sandboxes`
 
 Repo: `repos/agent-sandboxes` (origin `https://github.com/disler/agent-sandboxes.git`), same author family as the first four (IndyDevDan / "agenticengineer.com" footer, identical "Master Agentic Coding" CTA). `CLAUDE.md` is present but **empty (0 bytes)**; the real orientation lives in `README.md`, the big design spec `specs/sandbox-fork-cli-implementation.md`, and the per-app code under `apps/`. This report reads all of those and quotes them directly.

@@ -1,3 +1,11 @@
+---
+date: 2026-07-23
+worker: unattributed (backfilled)
+type: report
+mission: ""
+source: "pre-contract record, was analysis/sanitize-report.md"
+---
+
 # Sanitize Sweep Report — 2026-07-23
 
 Scope: in-place edits to **tracked files only** (`git ls-files`) across four working trees.
