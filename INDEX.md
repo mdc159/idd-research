@@ -13,6 +13,7 @@ The register: one line per record — date, type, worker, one-sentence hook, lin
 
 ## Reports
 
+- 2026-07-23 · report · scribe (claude) — Windows node bootstrapped into the fleet: smoke test PASS with caveat, herdr 0.7.2-preview breaks interactive delivery, verifier pairs not yet operational → [reports/2026-07-23-windows-node-bootstrap.md](reports/2026-07-23-windows-node-bootstrap.md)
 - 2026-07-23 · report · unattributed — Sanitize sweep across four working trees before the public flip: in-place edits, unstaged for orchestrator review → [reports/2026-07-23-sanitize-report.md](reports/2026-07-23-sanitize-report.md)
 - 2026-07-22 · report · unattributed — Drift audit: vault claims checked against repo reality, with verified patches per finding → [reports/2026-07-22-drift-audit.md](reports/2026-07-22-drift-audit.md)
 
